@@ -1,8 +1,8 @@
-from typing import Literal
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from jose import jwt, JWTError
-from app.config import settings
+from jwt.exceptions import InvalidTokenError
+
+from app.jwt_verify import decode_supabase_user_jwt
 from app.services.supabase import get_supabase
 
 bearer_scheme = HTTPBearer()
@@ -13,12 +13,7 @@ def get_current_user_id(
 ) -> str:
     token = credentials.credentials
     try:
-        payload = jwt.decode(
-            token,
-            settings.supabase_jwt_secret,
-            algorithms=["HS256"],
-            options={"verify_aud": False},
-        )
+        payload = decode_supabase_user_jwt(token)
         user_id: str | None = payload.get("sub")
         if user_id is None:
             raise HTTPException(
@@ -26,7 +21,7 @@ def get_current_user_id(
                 detail="Token inválido: sub ausente",
             )
         return user_id
-    except JWTError:
+    except InvalidTokenError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token inválido ou expirado",
