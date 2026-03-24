@@ -19,7 +19,7 @@ interface AuthState {
 
 interface AuthContextValue extends AuthState {
   signIn: (email: string, password: string) => Promise<string | null>
-  signOut: () => Promise<void>
+  signOut: () => void
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -134,12 +134,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [],
   )
 
-  const signOut = useCallback(async (): Promise<void> => {
-    try {
-      await supabase.auth.signOut()
-    } catch {
-      // Mesmo que o signOut falhe no servidor, limpa localmente.
-    }
+  const signOut = useCallback((): void => {
+    supabase.auth.signOut().catch(() => {})
     window.location.replace('/login')
   }, [])
 
