@@ -12,6 +12,16 @@ export function SetPassword() {
   const [ready, setReady] = useState(false)
 
   useEffect(() => {
+    const search = new URLSearchParams(window.location.search)
+    const code = search.get('code')
+    if (code) {
+      supabase.auth.exchangeCodeForSession(code).then(() => {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          if (session) setReady(true)
+        })
+      })
+    }
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) setReady(true)
     })

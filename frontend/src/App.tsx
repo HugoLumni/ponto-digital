@@ -4,6 +4,7 @@ import { RoleGuard } from './components/RoleGuard'
 import { Login } from './pages/Login'
 import { SetPassword } from './pages/SetPassword'
 import { AuthRedirect } from './pages/AuthRedirect'
+import { EntryRedirect } from './pages/EntryRedirect'
 import { PunchClock } from './pages/PunchClock'
 import { AdminDashboard } from './pages/AdminDashboard'
 
@@ -11,6 +12,7 @@ export function App() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/" element={<EntryRedirect />} />
         <Route path="/login" element={<Login />} />
         <Route path="/set-password" element={<SetPassword />} />
         <Route path="/auth/redirect" element={<AuthRedirect />} />
