@@ -55,18 +55,7 @@ export function SetPassword() {
       return
     }
 
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single()
-
-      navigate(profile?.role === 'admin' ? '/admin' : '/punch', { replace: true })
-    } else {
-      navigate('/login', { replace: true })
-    }
+    navigate('/auth/redirect', { replace: true })
   }
 
   if (!ready) {

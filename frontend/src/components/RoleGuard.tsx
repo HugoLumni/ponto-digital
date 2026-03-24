@@ -1,34 +1,25 @@
 import { Navigate, Outlet } from 'react-router-dom'
-import { useAuth } from '../hooks/useAuth'
+import { useAuth } from '../contexts/AuthContext'
+import { Spinner } from './Spinner'
 import type { Role } from '../types'
 
 interface RoleGuardProps {
   allowedRole: Role
+  /** Rota para redirecionar quando o role NÃO bater (ex: funcionário tentando /admin) */
   redirectTo: string
 }
 
 export function RoleGuard({ allowedRole, redirectTo }: RoleGuardProps) {
   const { profile, loading } = useAuth()
 
-  if (loading) {
-    return (
-      <div className="flex min-h-screen flex-col bg-surface">
-        <div className="h-1.5 w-full bg-gradient-to-r from-brand via-forest to-sand" />
-        <div className="flex flex-1 items-center justify-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand border-t-transparent" />
-        </div>
-      </div>
-    )
-  }
+  // Aguarda o bootstrap de sessão/perfil
+  if (loading) return <Spinner />
 
-  // Evita loop /admin <-> /punch quando o profile ainda não foi resolvido
-  if (!profile) {
-    return <Navigate to="/auth/redirect" replace />
-  }
+  // Sem profile: sessão existe mas perfil não foi resolvido ainda ou é inválido.
+  // AuthRedirect é o único ponto de resolução — evita loop /admin <-> /punch.
+  if (!profile) return <Navigate to="/auth/redirect" replace />
 
-  if (profile.role !== allowedRole) {
-    return <Navigate to={redirectTo} replace />
-  }
+  if (profile.role !== allowedRole) return <Navigate to={redirectTo} replace />
 
   return <Outlet />
 }

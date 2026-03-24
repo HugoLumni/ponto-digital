@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useAuth } from '../hooks/useAuth'
+import { useAuth } from '../contexts/AuthContext'
 import { usePunch } from '../hooks/usePunch'
 import { CameraCapture } from '../components/CameraCapture'
 import type { PunchRegisterResponse } from '../types'

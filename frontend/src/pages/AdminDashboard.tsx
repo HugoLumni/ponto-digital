@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, FormEvent } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useAuth } from '../hooks/useAuth'
+import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../supabaseClient'
 import type { Profile, PunchRecordWithUser, Role } from '../types'
 import logo from '../assets/logo.svg'

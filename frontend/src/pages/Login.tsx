@@ -1,16 +1,19 @@
-import { useState, useEffect, FormEvent } from 'react'
+import { useState, useEffect, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { supabase } from '../supabaseClient'
+import { useAuth } from '../contexts/AuthContext'
 import logo from '../assets/logo.svg'
 
 export function Login() {
   const navigate = useNavigate()
+  const { user, profile, loading } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
 
+  // Redireciona convites/recovery que chegam com token no hash
   useEffect(() => {
     const hash = window.location.hash
     if (hash.includes('access_token')) {
@@ -18,29 +21,18 @@ export function Login() {
     }
   }, [navigate])
 
+  // Se já está autenticado com perfil válido, vai direto para a área certa
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!session?.user) return
-
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', session.user.id)
-        .single()
-
-      if (profile?.role) {
-        navigate('/auth/redirect', { replace: true })
-      } else {
-        // Evita loop quando há sessão inválida/órfã sem profile correspondente.
-        await supabase.auth.signOut()
-      }
-    })
-  }, [navigate])
+    if (loading) return
+    if (user && profile) {
+      navigate(profile.role === 'admin' ? '/admin' : '/punch', { replace: true })
+    }
+  }, [loading, user, profile, navigate])
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setError(null)
-    setLoading(true)
+    setSubmitting(true)
 
     try {
       const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
@@ -48,17 +40,26 @@ export function Login() {
         setError('E-mail ou senha incorretos. Tente novamente.')
         return
       }
+      // AuthProvider vai atualizar user/profile via onAuthStateChange;
+      // o useEffect acima fará o redirect quando profile estiver disponível.
       navigate('/auth/redirect', { replace: true })
     } catch {
       setError('Falha ao autenticar. Tente novamente em instantes.')
     } finally {
-      setLoading(false)
+      setSubmitting(false)
     }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-surface-50">
+        <div className="w-10 h-10 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin" />
+      </div>
+    )
   }
 
   return (
     <div className="flex min-h-screen flex-col bg-surface">
-      {/* Faixa decorativa topo */}
       <div className="h-1.5 w-full bg-gradient-to-r from-brand via-forest to-sand" />
 
       <div className="flex flex-1 flex-col items-center justify-center px-6 py-12">
@@ -68,14 +69,12 @@ export function Login() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45 }}
         >
-          {/* Logo / identidade */}
           <div className="mb-10 text-center">
             <img src={logo} alt="Aldeia Escola" className="mx-auto mb-6 h-12 w-auto" />
             <h1 className="font-display text-xl font-bold text-ink">Ponto Digital</h1>
             <p className="mt-1.5 font-body text-sm text-ink-muted">Acesse sua conta para continuar</p>
           </div>
 
-          {/* Formulário */}
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div>
               <label className="mb-1.5 block font-body text-sm font-medium text-ink">
@@ -119,11 +118,11 @@ export function Login() {
 
             <motion.button
               type="submit"
-              disabled={loading}
+              disabled={submitting}
               whileTap={{ scale: 0.97 }}
               className="mt-2 w-full rounded-xl bg-brand py-3.5 font-display text-sm font-semibold text-white shadow-brand transition hover:bg-brand-dark disabled:opacity-60"
             >
-              {loading ? 'Entrando...' : 'Entrar'}
+              {submitting ? 'Entrando...' : 'Entrar'}
             </motion.button>
           </form>
 
