@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, FormEvent } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../contexts/AuthContext'
-import { supabase } from '../supabaseClient'
 import type { Profile, PunchRecordWithUser, Role } from '../types'
 import logo from '../assets/logo.svg'
 
@@ -27,7 +26,7 @@ async function apiFetch<T>(path: string, token: string, options?: RequestInit): 
 }
 
 export function AdminDashboard() {
-  const { profile, signOut } = useAuth()
+  const { profile, session, signOut } = useAuth()
   const [tab, setTab] = useState<Tab>('users')
   const [users, setUsers] = useState<Profile[]>([])
   const [records, setRecords] = useState<PunchRecordWithUser[]>([])
@@ -35,49 +34,50 @@ export function AdminDashboard() {
   const [filterUserId, setFilterUserId] = useState('')
   const [filterDate, setFilterDate] = useState('')
   const [loadingData, setLoadingData] = useState(false)
+  const [apiError, setApiError] = useState<string | null>(null)
   const [showInviteModal, setShowInviteModal] = useState(false)
   const [inviteForm, setInviteForm] = useState({ full_name: '', email: '', role: 'funcionario' as Role })
   const [inviteLoading, setInviteLoading] = useState(false)
   const [inviteError, setInviteError] = useState<string | null>(null)
   const [inviteSuccess, setInviteSuccess] = useState(false)
 
-  const getToken = useCallback(async (): Promise<string> => {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) throw new Error('Sessão expirada')
-    return session.access_token
-  }, [])
-
   const loadUsers = useCallback(async () => {
+    if (!session) return
     setLoadingData(true)
+    setApiError(null)
     try {
-      const token = await getToken()
-      const data = await apiFetch<Profile[]>('/admin/users', token)
+      const data = await apiFetch<Profile[]>('/admin/users', session.access_token)
       setUsers(data)
-    } catch {
-      // silently fail
+    } catch (err) {
+      setApiError(err instanceof Error ? err.message : 'Erro ao carregar usuários')
     } finally {
       setLoadingData(false)
     }
-  }, [getToken])
+  }, [session])
 
   const loadRecords = useCallback(async (pageNum: number) => {
+    if (!session) return
     setLoadingData(true)
+    setApiError(null)
     try {
-      const token = await getToken()
       const base = filterUserId ? `/admin/logs/${filterUserId}` : '/admin/logs'
-      const data = await apiFetch<PunchRecordWithUser[]>(`${base}?page=${pageNum}&page_size=${PAGE_SIZE}`, token)
+      const data = await apiFetch<PunchRecordWithUser[]>(
+        `${base}?page=${pageNum}&page_size=${PAGE_SIZE}`,
+        session.access_token,
+      )
       setRecords(data)
-    } catch {
-      // silently fail
+    } catch (err) {
+      setApiError(err instanceof Error ? err.message : 'Erro ao carregar registros')
     } finally {
       setLoadingData(false)
     }
-  }, [getToken, filterUserId])
+  }, [session, filterUserId])
 
   useEffect(() => {
+    if (!session) return
     if (tab === 'users') loadUsers()
     else loadRecords(page)
-  }, [tab, page, loadUsers, loadRecords])
+  }, [tab, page, session, loadUsers, loadRecords])
 
   const filteredRecords = filterDate
     ? records.filter((r) => r.date === filterDate)
@@ -85,11 +85,11 @@ export function AdminDashboard() {
 
   async function handleInvite(e: FormEvent) {
     e.preventDefault()
+    if (!session) return
     setInviteLoading(true)
     setInviteError(null)
     try {
-      const token = await getToken()
-      await apiFetch('/auth/invite', token, {
+      await apiFetch('/auth/invite', session.access_token, {
         method: 'POST',
         body: JSON.stringify(inviteForm),
       })
@@ -164,6 +164,15 @@ export function AdminDashboard() {
                 + Convidar
               </button>
             </div>
+
+            {apiError && (
+              <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+                <p className="font-body text-sm text-red-700">{apiError}</p>
+                <button onClick={loadUsers} className="mt-2 font-body text-sm font-medium text-brand hover:underline">
+                  Tentar novamente
+                </button>
+              </div>
+            )}
 
             {loadingData ? (
               <div className="flex justify-center py-12">
