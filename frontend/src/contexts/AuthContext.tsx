@@ -8,7 +8,7 @@ import {
 } from 'react'
 import type { User, Session } from '@supabase/supabase-js'
 import { supabase } from '../supabaseClient'
-import type { Profile } from '../types'
+import type { Profile, Role } from '../types'
 
 interface AuthState {
   user: User | null
@@ -24,6 +24,28 @@ interface AuthContextValue extends AuthState {
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
+function isRole(value: unknown): value is Role {
+  return value === 'admin' || value === 'funcionario'
+}
+
+function fallbackProfileFromUser(user: User): Profile | null {
+  const role = user.user_metadata?.role
+  if (!isRole(role)) return null
+
+  const fullName = typeof user.user_metadata?.full_name === 'string'
+    ? user.user_metadata.full_name
+    : (user.email ?? 'Usuário')
+
+  return {
+    id: user.id,
+    full_name: fullName,
+    email: user.email ?? '',
+    role,
+    is_active: true,
+    created_at: new Date().toISOString(),
+  }
+}
+
 async function fetchProfile(userId: string): Promise<Profile | null> {
   try {
     const { data, error } = await supabase
@@ -36,6 +58,15 @@ async function fetchProfile(userId: string): Promise<Profile | null> {
   } catch {
     return null
   }
+}
+
+async function fetchProfileWithTimeout(userId: string, timeoutMs = 4000): Promise<Profile | null> {
+  return Promise.race([
+    fetchProfile(userId),
+    new Promise<null>((resolve) => {
+      setTimeout(() => resolve(null), timeoutMs)
+    }),
+  ])
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -57,14 +88,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!mounted) return
 
         if (session?.user) {
-          const profile = await fetchProfile(session.user.id)
-          if (mounted) {
-            setState({ user: session.user, profile, session, loading: false })
-          }
+          const user = session.user
+          const fallbackProfile = fallbackProfileFromUser(user)
+
+          // Libera a UI imediatamente com fallback (quando existir),
+          // sem bloquear no fetch de profile.
+          setState({ user, profile: fallbackProfile, session, loading: false })
+
+          const dbProfile = await fetchProfileWithTimeout(user.id)
+          if (!mounted || !dbProfile) return
+
+          // Evita race: só aplica se ainda for o mesmo usuário logado.
+          setState((prev) => {
+            if (prev.user?.id !== user.id) return prev
+            return { ...prev, profile: dbProfile }
+          })
         } else {
-          if (mounted) {
-            setState({ user: null, profile: null, session: null, loading: false })
-          }
+          setState({ user: null, profile: null, session: null, loading: false })
         }
       },
     )
@@ -72,7 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Fallback de segurança: se onAuthStateChange não disparar em 5s, destrava o loading.
     const fallback = setTimeout(() => {
       if (mounted) {
-        setState(prev => prev.loading ? { ...prev, loading: false } : prev)
+        setState((prev) => (prev.loading ? { ...prev, loading: false } : prev))
       }
     }, 5000)
 
