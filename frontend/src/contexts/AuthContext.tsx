@@ -14,7 +14,9 @@ interface AuthState {
   user: User | null
   profile: Profile | null
   session: Session | null
+  /** true enquanto a sessão inicial não foi resolvida */
   loading: boolean
+  /** true quando o fetch de profile terminou (com ou sem resultado) */
   profileResolved: boolean
 }
 
@@ -32,11 +34,10 @@ function isRole(value: unknown): value is Role {
 function fallbackProfileFromUser(user: User): Profile | null {
   const role = user.user_metadata?.role
   if (!isRole(role)) return null
-
-  const fullName = typeof user.user_metadata?.full_name === 'string'
-    ? user.user_metadata.full_name
-    : (user.email ?? 'Usuário')
-
+  const fullName =
+    typeof user.user_metadata?.full_name === 'string'
+      ? user.user_metadata.full_name
+      : (user.email ?? 'Usuário')
   return {
     id: user.id,
     full_name: fullName,
@@ -61,15 +62,6 @@ async function fetchProfile(userId: string): Promise<Profile | null> {
   }
 }
 
-async function fetchProfileWithTimeout(userId: string, timeoutMs = 4000): Promise<Profile | null> {
-  return Promise.race([
-    fetchProfile(userId),
-    new Promise<null>((resolve) => {
-      setTimeout(() => resolve(null), timeoutMs)
-    }),
-  ])
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({
     user: null,
@@ -82,67 +74,77 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let mounted = true
 
-    // onAuthStateChange com INITIAL_SESSION é a única fonte de verdade.
-    // Ele dispara imediatamente com a sessão atual (ou null) antes de qualquer
-    // evento subsequente, eliminando a corrida com getSession().
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         if (!mounted) return
 
         if (session?.user) {
           const user = session.user
-          const fallbackProfile = fallbackProfileFromUser(user)
 
-          // Libera a UI imediatamente com fallback (quando existir),
-          // sem bloquear no fetch de profile.
+          // Usa fallback imediato de user_metadata para não bloquear a UI.
+          const fallback = fallbackProfileFromUser(user)
+
           setState({
             user,
-            profile: fallbackProfile,
             session,
             loading: false,
-            // Sem role no metadata, ainda vamos resolver pelo banco.
-            profileResolved: fallbackProfile !== null,
+            // Se temos fallback com role válido, já consideramos resolvido.
+            profile: fallback,
+            profileResolved: fallback !== null,
           })
 
-          const dbProfile = await fetchProfileWithTimeout(user.id)
+          // Busca perfil real no banco em paralelo (sem timeout agressivo).
+          const dbProfile = await fetchProfile(user.id)
           if (!mounted) return
 
-          // Evita race: só aplica se ainda for o mesmo usuário logado.
           setState((prev) => {
             if (prev.user?.id !== user.id) return prev
+            // Prefere perfil do banco; se falhou, mantém fallback.
+            const resolved = dbProfile ?? prev.profile
             return {
               ...prev,
-              profile: dbProfile ?? prev.profile,
+              profile: resolved,
+              // Só marca resolvido quando o banco respondeu.
               profileResolved: true,
             }
           })
         } else {
-          setState({ user: null, profile: null, session: null, loading: false, profileResolved: true })
+          setState({
+            user: null,
+            profile: null,
+            session: null,
+            loading: false,
+            profileResolved: true,
+          })
         }
       },
     )
 
-    // Fallback de segurança: se onAuthStateChange não disparar em 5s, destrava o loading.
-    const fallback = setTimeout(() => {
+    // Destrava loading após 8s caso onAuthStateChange não dispare.
+    const fallbackTimer = setTimeout(() => {
       if (mounted) {
-        setState((prev) => {
-          if (!prev.loading) return prev
-          return { ...prev, loading: false, profileResolved: true }
-        })
+        setState((prev) =>
+          prev.loading
+            ? { ...prev, loading: false, profileResolved: true }
+            : prev,
+        )
       }
-    }, 5000)
+    }, 8000)
 
     return () => {
       mounted = false
       subscription.unsubscribe()
-      clearTimeout(fallback)
+      clearTimeout(fallbackTimer)
     }
   }, [])
 
-  const signIn = useCallback(async (email: string, password: string): Promise<string | null> => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    return error ? error.message : null
-  }, [])
+  const signIn = useCallback(
+    async (email: string, password: string): Promise<string | null> => {
+      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      return error ? error.message : null
+    },
+    [],
+  )
 
   const signOut = useCallback(async (): Promise<void> => {
     await supabase.auth.signOut()

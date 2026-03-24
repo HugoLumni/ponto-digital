@@ -5,19 +5,16 @@ import type { Role } from '../types'
 
 interface RoleGuardProps {
   allowedRole: Role
-  /** Rota para redirecionar quando o role NÃO bater (ex: funcionário tentando /admin) */
   redirectTo: string
 }
 
 export function RoleGuard({ allowedRole, redirectTo }: RoleGuardProps) {
   const { profile, loading, profileResolved } = useAuth()
 
-  // Aguarda o bootstrap de sessão/perfil
-  if (loading) return <Spinner />
-  if (!profileResolved) return <Spinner />
+  // Aguarda sessão e perfil serem resolvidos.
+  if (loading || !profileResolved) return <Spinner />
 
-  // Sem profile: sessão existe mas perfil não foi resolvido ainda ou é inválido.
-  // AuthRedirect é o único ponto de resolução — evita loop /admin <-> /punch.
+  // Sem profile após resolução completa: vai para /auth/redirect decidir.
   if (!profile) return <Navigate to="/auth/redirect" replace />
 
   if (profile.role !== allowedRole) return <Navigate to={redirectTo} replace />
