@@ -2,6 +2,7 @@ import { useState, useEffect, FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useAuth } from '../hooks/useAuth'
+import { supabase } from '../supabaseClient'
 
 export function Login() {
   const { signIn, profile } = useAuth()
@@ -19,9 +20,12 @@ export function Login() {
     }
   }, [navigate])
 
-  if (profile) {
-    navigate(profile.role === 'admin' ? '/admin' : '/punch', { replace: true })
-  }
+  // Redireciona quando o profile carregar após login
+  useEffect(() => {
+    if (profile) {
+      navigate(profile.role === 'admin' ? '/admin' : '/punch', { replace: true })
+    }
+  }, [profile, navigate])
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -33,6 +37,18 @@ export function Login() {
       setError('E-mail ou senha incorretos. Tente novamente.')
       setLoading(false)
       return
+    }
+
+    // Busca o profile diretamente para redirecionar sem depender do estado do hook
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single()
+
+      navigate(profileData?.role === 'admin' ? '/admin' : '/punch', { replace: true })
     }
 
     setLoading(false)
