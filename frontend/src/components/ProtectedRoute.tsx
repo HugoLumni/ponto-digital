@@ -2,10 +2,14 @@ import { Navigate, Outlet } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { Spinner } from './Spinner'
 
+/**
+ * Decide apenas: "existe sessão ativa?"
+ * Aguarda sessionReady antes de qualquer decisão.
+ */
 export function ProtectedRoute() {
-  const { user, loading } = useAuth()
+  const { user, sessionReady } = useAuth()
 
-  if (loading) return <Spinner />
+  if (!sessionReady) return <Spinner />
 
   if (!user) return <Navigate to="/login" replace />
 

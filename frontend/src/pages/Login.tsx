@@ -3,11 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { supabase } from '../supabaseClient'
 import { useAuth } from '../contexts/AuthContext'
+import { Spinner } from '../components/Spinner'
 import logo from '../assets/logo.svg'
 
 export function Login() {
   const navigate = useNavigate()
-  const { user, profile, loading } = useAuth()
+  const { user, profile, sessionReady, profileStatus } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -21,13 +22,20 @@ export function Login() {
     }
   }, [navigate])
 
-  // Se já está autenticado com perfil válido, vai direto para a área certa
+  // Redireciona apenas quando o estado de auth estiver completamente resolvido
   useEffect(() => {
-    if (loading) return
-    if (user && profile) {
+    if (!sessionReady) return
+    if (profileStatus === 'loading') return
+
+    if (user && profile && profileStatus === 'ready') {
       navigate(profile.role === 'admin' ? '/admin' : '/punch', { replace: true })
     }
-  }, [loading, user, profile, navigate])
+  }, [sessionReady, profileStatus, user, profile, navigate])
+
+  // Mostra spinner enquanto o bootstrap ainda não terminou
+  if (!sessionReady || profileStatus === 'loading') {
+    return <Spinner />
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -40,22 +48,14 @@ export function Login() {
         setError('E-mail ou senha incorretos. Tente novamente.')
         return
       }
-      // AuthProvider vai atualizar user/profile via onAuthStateChange;
-      // o useEffect acima fará o redirect quando profile estiver disponível.
+      // AuthProvider atualiza estado via onAuthStateChange.
+      // Navega para AuthRedirect que aguarda profileStatus final.
       navigate('/auth/redirect', { replace: true })
     } catch {
       setError('Falha ao autenticar. Tente novamente em instantes.')
     } finally {
       setSubmitting(false)
     }
-  }
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-surface-50">
-        <div className="w-10 h-10 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin" />
-      </div>
-    )
   }
 
   return (
