@@ -9,12 +9,10 @@ interface RoleGuardProps {
 }
 
 export function RoleGuard({ allowedRole, redirectTo }: RoleGuardProps) {
-  const { profile, loading, profileResolved } = useAuth()
+  const { profile, loading } = useAuth()
 
-  // Aguarda sessão e perfil serem resolvidos.
-  if (loading || !profileResolved) return <Spinner />
+  if (loading) return <Spinner />
 
-  // Sem profile após resolução completa: vai para /auth/redirect decidir.
   if (!profile) return <Navigate to="/auth/redirect" replace />
 
   if (profile.role !== allowedRole) return <Navigate to={redirectTo} replace />

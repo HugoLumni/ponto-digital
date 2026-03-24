@@ -5,16 +5,15 @@ import { Spinner } from '../components/Spinner'
 
 /**
  * Resolvedor central de sessão/perfil.
- * Só age depois que loading=false E profileResolved=true.
- * Nunca faz signOut automático — evita deslogar por corrida de inicialização.
+ * Aguarda loading=false antes de agir.
+ * Nunca faz signOut automático.
  */
 export function AuthRedirect() {
-  const { user, profile, loading, profileResolved } = useAuth()
+  const { user, profile, loading } = useAuth()
   const navigate = useNavigate()
 
   useEffect(() => {
-    // Aguarda resolução completa antes de qualquer decisão.
-    if (loading || !profileResolved) return
+    if (loading) return
 
     if (!user) {
       navigate('/login', { replace: true })
@@ -22,15 +21,16 @@ export function AuthRedirect() {
     }
 
     if (!profile) {
-      // Sessão existe mas sem perfil válido mesmo após resolução.
-      // Vai para login mas NÃO faz signOut — sessão pode ser válida,
-      // apenas o perfil pode estar ausente no banco.
-      navigate('/login', { replace: true })
-      return
+      // Sessão válida mas sem perfil — aguarda um ciclo extra antes de desistir.
+      // Isso cobre o caso em que o banco ainda não respondeu.
+      const timer = setTimeout(() => {
+        navigate('/login', { replace: true })
+      }, 2000)
+      return () => clearTimeout(timer)
     }
 
     navigate(profile.role === 'admin' ? '/admin' : '/punch', { replace: true })
-  }, [loading, user, profile, profileResolved, navigate])
+  }, [loading, user, profile, navigate])
 
   return <Spinner />
 }

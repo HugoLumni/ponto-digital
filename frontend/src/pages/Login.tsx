@@ -40,8 +40,6 @@ export function Login() {
         setError('E-mail ou senha incorretos. Tente novamente.')
         return
       }
-      // AuthProvider vai atualizar user/profile via onAuthStateChange;
-      // o useEffect acima fará o redirect quando profile estiver disponível.
       navigate('/auth/redirect', { replace: true })
     } catch {
       setError('Falha ao autenticar. Tente novamente em instantes.')
@@ -50,13 +48,11 @@ export function Login() {
     }
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-surface-50">
-        <div className="w-10 h-10 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin" />
-      </div>
-    )
-  }
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center bg-surface">
+      <div className="w-10 h-10 border-4 border-brand/20 border-t-brand rounded-full animate-spin" />
+    </div>
+  )
 
   return (
     <div className="flex min-h-screen flex-col bg-surface">
@@ -77,9 +73,7 @@ export function Login() {
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div>
-              <label className="mb-1.5 block font-body text-sm font-medium text-ink">
-                E-mail
-              </label>
+              <label className="mb-1.5 block font-body text-sm font-medium text-ink">E-mail</label>
               <input
                 type="email"
                 value={email}
@@ -92,9 +86,7 @@ export function Login() {
             </div>
 
             <div>
-              <label className="mb-1.5 block font-body text-sm font-medium text-ink">
-                Senha
-              </label>
+              <label className="mb-1.5 block font-body text-sm font-medium text-ink">Senha</label>
               <input
                 type="password"
                 value={password}
