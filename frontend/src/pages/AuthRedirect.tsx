@@ -4,37 +4,38 @@ import { useAuth } from '../contexts/AuthContext'
 import { Spinner } from '../components/Spinner'
 
 /**
- * Resolvedor central de sessão/perfil — não destrutivo.
- *
- * - Aguarda sessionReady + profileStatus final antes de navegar.
- * - Nunca chama signOut automaticamente (evita logout no F5).
- * - Com perfil válido: navega por role.
+ * Ponto único de resolução de sessão/perfil.
+ * - Aguarda o bootstrap do AuthProvider (loading).
+ * - Com sessão + perfil válido: redireciona por role.
+ * - Com sessão + sem perfil: faz signOut e vai para /login.
  * - Sem sessão: vai para /login.
- * - Perfil ausente/erro: vai para /login (sessão permanece ativa).
  */
 export function AuthRedirect() {
-  const { user, profile, sessionReady, profileStatus } = useAuth()
+  const { user, profile, loading, profileResolved } = useAuth()
   const navigate = useNavigate()
 
   useEffect(() => {
-    // Aguarda resolução completa antes de qualquer decisão
-    if (!sessionReady) return
-    if (profileStatus === 'loading') return
+    if (loading) return
 
     if (!user) {
       navigate('/login', { replace: true })
       return
     }
 
-    if (profile && profileStatus === 'ready') {
-      navigate(profile.role === 'admin' ? '/admin' : '/punch', { replace: true })
+    // Enquanto o perfil ainda está em resolução, mantém spinner.
+    if (!profile && !profileResolved) return
+
+    if (!profile && profileResolved) {
+      // Perfil ausente após resolver auth: volta para login sem forçar signOut.
+      // Evita deslogar indevidamente em corridas de inicialização no F5.
+      navigate('/login', { replace: true })
       return
     }
 
-    // profileStatus=missing|error com sessão válida:
-    // vai para login sem destruir sessão — usuário pode tentar novamente.
-    navigate('/login', { replace: true })
-  }, [sessionReady, profileStatus, user, profile, navigate])
+    if (!profile) return
+
+    navigate(profile.role === 'admin' ? '/admin' : '/punch', { replace: true })
+  }, [loading, user, profile, profileResolved, navigate])
 
   return <Spinner />
 }

@@ -1,17 +1,3 @@
-/**
- * AuthContext — fonte única de verdade para sessão e perfil.
- *
- * Fases de bootstrap:
- *   sessionReady=false  → sessão ainda não foi resolvida pelo SDK (spinner global)
- *   sessionReady=true, profileStatus='loading' → sessão existe, buscando perfil
- *   sessionReady=true, profileStatus='ready'   → perfil carregado com sucesso
- *   sessionReady=true, profileStatus='missing' → perfil não existe na tabela
- *   sessionReady=true, profileStatus='error'   → falha de rede/RLS ao buscar perfil
- *   sessionReady=true, profileStatus='idle'    → sem sessão ativa
- *
- * Regra fundamental: NENHUM guard ou página deve tomar decisão de navegação
- * enquanto sessionReady=false ou profileStatus='loading'.
- */
 import {
   createContext,
   useContext,
@@ -24,16 +10,12 @@ import type { User, Session } from '@supabase/supabase-js'
 import { supabase } from '../supabaseClient'
 import type { Profile, Role } from '../types'
 
-export type ProfileStatus = 'idle' | 'loading' | 'ready' | 'missing' | 'error'
-
 interface AuthState {
   user: User | null
   profile: Profile | null
   session: Session | null
-  /** false enquanto o SDK ainda não resolveu a sessão inicial */
-  sessionReady: boolean
-  /** estado de resolução do perfil */
-  profileStatus: ProfileStatus
+  loading: boolean
+  profileResolved: boolean
 }
 
 interface AuthContextValue extends AuthState {
@@ -43,21 +25,21 @@ interface AuthContextValue extends AuthState {
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
-// ─── helpers ────────────────────────────────────────────────────────────────
-
 function isRole(value: unknown): value is Role {
   return value === 'admin' || value === 'funcionario'
 }
 
-/** Constrói um Profile mínimo a partir de user_metadata quando disponível */
-function profileFromMetadata(user: User): Profile | null {
+function fallbackProfileFromUser(user: User): Profile | null {
   const role = user.user_metadata?.role
   if (!isRole(role)) return null
+
+  const fullName = typeof user.user_metadata?.full_name === 'string'
+    ? user.user_metadata.full_name
+    : (user.email ?? 'Usuário')
+
   return {
     id: user.id,
-    full_name: typeof user.user_metadata?.full_name === 'string'
-      ? user.user_metadata.full_name
-      : (user.email ?? 'Usuário'),
+    full_name: fullName,
     email: user.email ?? '',
     role,
     is_active: true,
@@ -65,106 +47,90 @@ function profileFromMetadata(user: User): Profile | null {
   }
 }
 
-/** Busca perfil no banco com retry simples (1 tentativa extra após 1.5s) */
-async function fetchProfileWithRetry(userId: string): Promise<{ data: Profile | null; status: ProfileStatus }> {
-  for (let attempt = 0; attempt < 2; attempt++) {
-    if (attempt > 0) {
-      await new Promise((r) => setTimeout(r, 1500))
-    }
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .maybeSingle()
-
-      if (error) {
-        console.warn(`[auth] fetchProfile tentativa ${attempt + 1} erro:`, error.message)
-        continue
-      }
-      if (!data) return { data: null, status: 'missing' }
-      return { data: data as Profile, status: 'ready' }
-    } catch (err) {
-      console.warn(`[auth] fetchProfile tentativa ${attempt + 1} exceção:`, err)
-    }
+async function fetchProfile(userId: string): Promise<Profile | null> {
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .maybeSingle()
+    if (error || !data) return null
+    return data as Profile
+  } catch {
+    return null
   }
-  return { data: null, status: 'error' }
 }
 
-// ─── provider ───────────────────────────────────────────────────────────────
+async function fetchProfileWithTimeout(userId: string, timeoutMs = 4000): Promise<Profile | null> {
+  return Promise.race([
+    fetchProfile(userId),
+    new Promise<null>((resolve) => {
+      setTimeout(() => resolve(null), timeoutMs)
+    }),
+  ])
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({
     user: null,
     profile: null,
     session: null,
-    sessionReady: false,
-    profileStatus: 'idle',
+    loading: true,
+    profileResolved: false,
   })
 
   useEffect(() => {
     let mounted = true
 
-    async function resolveSession(session: Session | null) {
-      if (!mounted) return
-
-      if (!session?.user) {
-        setState({
-          user: null,
-          profile: null,
-          session: null,
-          sessionReady: true,
-          profileStatus: 'idle',
-        })
-        return
-      }
-
-      const user = session.user
-
-      // Libera sessionReady imediatamente com fallback de metadata (se existir),
-      // para que guards possam mostrar spinner sem bloquear o SDK.
-      const metaProfile = profileFromMetadata(user)
-      setState({
-        user,
-        profile: metaProfile,
-        session,
-        sessionReady: true,
-        profileStatus: 'loading',
-      })
-
-      // Busca perfil real no banco (com retry)
-      const { data: dbProfile, status } = await fetchProfileWithRetry(user.id)
-      if (!mounted) return
-
-      setState((prev) => {
-        // Descarta se o usuário mudou durante o fetch
-        if (prev.user?.id !== user.id) return prev
-        return {
-          ...prev,
-          profile: dbProfile ?? prev.profile,
-          profileStatus: status,
-        }
-      })
-    }
-
-    // onAuthStateChange é a única fonte de verdade.
-    // INITIAL_SESSION dispara imediatamente com a sessão atual (ou null).
+    // onAuthStateChange com INITIAL_SESSION é a única fonte de verdade.
+    // Ele dispara imediatamente com a sessão atual (ou null) antes de qualquer
+    // evento subsequente, eliminando a corrida com getSession().
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
-        await resolveSession(session)
+        if (!mounted) return
+
+        if (session?.user) {
+          const user = session.user
+          const fallbackProfile = fallbackProfileFromUser(user)
+
+          // Libera a UI imediatamente com fallback (quando existir),
+          // sem bloquear no fetch de profile.
+          setState({
+            user,
+            profile: fallbackProfile,
+            session,
+            loading: false,
+            // Sem role no metadata, ainda vamos resolver pelo banco.
+            profileResolved: fallbackProfile !== null,
+          })
+
+          const dbProfile = await fetchProfileWithTimeout(user.id)
+          if (!mounted) return
+
+          // Evita race: só aplica se ainda for o mesmo usuário logado.
+          setState((prev) => {
+            if (prev.user?.id !== user.id) return prev
+            return {
+              ...prev,
+              profile: dbProfile ?? prev.profile,
+              profileResolved: true,
+            }
+          })
+        } else {
+          setState({ user: null, profile: null, session: null, loading: false, profileResolved: true })
+        }
       },
     )
 
-    // Fallback: se o SDK não disparar em 6s, desbloqueia o app.
+    // Fallback de segurança: se onAuthStateChange não disparar em 5s, destrava o loading.
     const fallback = setTimeout(() => {
       if (mounted) {
-        setState((prev) =>
-          prev.sessionReady
-            ? prev
-            : { ...prev, sessionReady: true, profileStatus: 'error' },
-        )
+        setState((prev) => {
+          if (!prev.loading) return prev
+          return { ...prev, loading: false, profileResolved: true }
+        })
       }
-    }, 6000)
+    }, 5000)
 
     return () => {
       mounted = false
