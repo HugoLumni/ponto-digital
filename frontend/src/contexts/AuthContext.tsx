@@ -135,7 +135,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   )
 
   const signOut = useCallback(async (): Promise<void> => {
-    await supabase.auth.signOut()
+    try {
+      await supabase.auth.signOut()
+    } catch {
+      // Mesmo que o signOut falhe no servidor, limpa localmente.
+    }
     window.location.replace('/login')
   }, [])
 
