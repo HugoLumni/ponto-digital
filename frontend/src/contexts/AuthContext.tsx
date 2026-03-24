@@ -148,6 +148,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async (): Promise<void> => {
     await supabase.auth.signOut()
+    // Força navegação para login após limpar sessão.
+    // O onAuthStateChange vai limpar o estado; a navegação garante que
+    // o usuário saia da rota protegida imediatamente.
+    window.location.replace('/login')
   }, [])
 
   return (

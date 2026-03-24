@@ -36,11 +36,11 @@ def get_current_admin_user_id(
         supabase.table("profiles")
         .select("role")
         .eq("id", user_id)
-        .single()
+        .limit(1)
         .execute()
     )
-    profile = result.data
-    if not profile or profile.get("role") != "admin":
+    rows = result.data or []
+    if not rows or rows[0].get("role") != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Acesso restrito a administradores",
