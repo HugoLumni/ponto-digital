@@ -10,10 +10,11 @@ interface RoleGuardProps {
 }
 
 export function RoleGuard({ allowedRole, redirectTo }: RoleGuardProps) {
-  const { profile, loading } = useAuth()
+  const { profile, loading, profileResolved } = useAuth()
 
   // Aguarda o bootstrap de sessão/perfil
   if (loading) return <Spinner />
+  if (!profileResolved) return <Spinner />
 
   // Sem profile: sessão existe mas perfil não foi resolvido ainda ou é inválido.
   // AuthRedirect é o único ponto de resolução — evita loop /admin <-> /punch.

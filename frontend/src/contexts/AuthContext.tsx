@@ -15,6 +15,7 @@ interface AuthState {
   profile: Profile | null
   session: Session | null
   loading: boolean
+  profileResolved: boolean
 }
 
 interface AuthContextValue extends AuthState {
@@ -75,6 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     profile: null,
     session: null,
     loading: true,
+    profileResolved: false,
   })
 
   useEffect(() => {
@@ -93,18 +95,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
           // Libera a UI imediatamente com fallback (quando existir),
           // sem bloquear no fetch de profile.
-          setState({ user, profile: fallbackProfile, session, loading: false })
+          setState({
+            user,
+            profile: fallbackProfile,
+            session,
+            loading: false,
+            // Sem role no metadata, ainda vamos resolver pelo banco.
+            profileResolved: fallbackProfile !== null,
+          })
 
           const dbProfile = await fetchProfileWithTimeout(user.id)
-          if (!mounted || !dbProfile) return
+          if (!mounted) return
 
           // Evita race: só aplica se ainda for o mesmo usuário logado.
           setState((prev) => {
             if (prev.user?.id !== user.id) return prev
-            return { ...prev, profile: dbProfile }
+            return {
+              ...prev,
+              profile: dbProfile ?? prev.profile,
+              profileResolved: true,
+            }
           })
         } else {
-          setState({ user: null, profile: null, session: null, loading: false })
+          setState({ user: null, profile: null, session: null, loading: false, profileResolved: true })
         }
       },
     )
@@ -112,7 +125,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Fallback de segurança: se onAuthStateChange não disparar em 5s, destrava o loading.
     const fallback = setTimeout(() => {
       if (mounted) {
-        setState((prev) => (prev.loading ? { ...prev, loading: false } : prev))
+        setState((prev) => {
+          if (!prev.loading) return prev
+          return { ...prev, loading: false, profileResolved: true }
+        })
       }
     }, 5000)
 

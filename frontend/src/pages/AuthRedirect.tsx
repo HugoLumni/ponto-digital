@@ -12,7 +12,7 @@ import { Spinner } from '../components/Spinner'
  * - Sem sessão: vai para /login.
  */
 export function AuthRedirect() {
-  const { user, profile, loading } = useAuth()
+  const { user, profile, loading, profileResolved } = useAuth()
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -23,7 +23,10 @@ export function AuthRedirect() {
       return
     }
 
-    if (!profile) {
+    // Enquanto o perfil ainda está em resolução, mantém spinner.
+    if (!profile && !profileResolved) return
+
+    if (!profile && profileResolved) {
       // Sessão válida mas sem perfil correspondente — limpa e reinicia.
       supabase.auth.signOut().then(() => {
         navigate('/login', { replace: true })
@@ -31,8 +34,10 @@ export function AuthRedirect() {
       return
     }
 
+    if (!profile) return
+
     navigate(profile.role === 'admin' ? '/admin' : '/punch', { replace: true })
-  }, [loading, user, profile, navigate])
+  }, [loading, user, profile, profileResolved, navigate])
 
   return <Spinner />
 }
