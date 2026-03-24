@@ -2,10 +2,9 @@ import { useState, useEffect, FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useAuth } from '../hooks/useAuth'
-import { supabase } from '../supabaseClient'
 
 export function Login() {
-  const { signIn, profile } = useAuth()
+  const { signIn } = useAuth()
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -20,13 +19,6 @@ export function Login() {
     }
   }, [navigate])
 
-  // Redireciona quando o profile carregar após login
-  useEffect(() => {
-    if (profile) {
-      navigate(profile.role === 'admin' ? '/admin' : '/punch', { replace: true })
-    }
-  }, [profile, navigate])
-
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setError(null)
@@ -39,19 +31,8 @@ export function Login() {
       return
     }
 
-    // Busca o profile diretamente para redirecionar sem depender do estado do hook
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user) {
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single()
-
-      navigate(profileData?.role === 'admin' ? '/admin' : '/punch', { replace: true })
-    }
-
-    setLoading(false)
+    // Navega para rota de dispatch que decide para onde ir baseado no role
+    navigate('/auth/redirect', { replace: true })
   }
 
   return (
