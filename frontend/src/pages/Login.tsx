@@ -1,10 +1,9 @@
 import { useState, useEffect, FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { useAuth } from '../hooks/useAuth'
+import { supabase } from '../supabaseClient'
 
 export function Login() {
-  const { signIn } = useAuth()
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -19,20 +18,32 @@ export function Login() {
     }
   }, [navigate])
 
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        navigate('/auth/redirect', { replace: true })
+      }
+    })
+  }, [navigate])
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setError(null)
     setLoading(true)
 
-    const errorMsg = await signIn(email, password)
-    if (errorMsg) {
-      setError('E-mail ou senha incorretos. Tente novamente.')
-      setLoading(false)
-      return
-    }
+    try {
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+      if (signInError) {
+        setError('E-mail ou senha incorretos. Tente novamente.')
+        return
+      }
 
-    // Navega para rota de dispatch que decide para onde ir baseado no role
-    navigate('/auth/redirect', { replace: true })
+      navigate('/auth/redirect', { replace: true })
+    } catch {
+      setError('Falha ao autenticar. Tente novamente em instantes.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
