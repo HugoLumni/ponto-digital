@@ -1,4 +1,4 @@
-import { useState, useEffect, FormEvent } from 'react'
+import { useState, useEffect, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { supabase } from '../supabaseClient'
@@ -48,14 +48,27 @@ export function SetPassword() {
     }
 
     setLoading(true)
-    const { error: updateError } = await supabase.auth.updateUser({ password })
-    if (updateError) {
-      setError('Não foi possível definir a senha. Tente novamente.')
-      setLoading(false)
-      return
-    }
+    try {
+      const { error: updateError } = await supabase.auth.updateUser({ password })
+      if (updateError) {
+        setError('Não foi possível definir a senha. Tente novamente.')
+        return
+      }
 
-    navigate('/auth/redirect', { replace: true })
+      // Garante que a sessão esteja pronta antes do redirect final.
+      await supabase.auth.getSession()
+
+      navigate('/auth/redirect', { replace: true })
+
+      // Fallback para ambientes onde o navigate pode não refletir de imediato.
+      setTimeout(() => {
+        window.location.replace('/auth/redirect')
+      }, 1200)
+    } catch {
+      setError('Falha ao salvar senha. Tente novamente em instantes.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   if (!ready) {
