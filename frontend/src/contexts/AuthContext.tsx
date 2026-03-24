@@ -135,7 +135,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   )
 
   const signOut = useCallback((): void => {
-    supabase.auth.signOut().catch(() => {})
+    // Limpa estado imediatamente para impedir redirect automático de volta.
+    setState({ user: null, profile: null, session: null, loading: false })
+
+    // Remove tokens locais como fallback extra.
+    try {
+      const keysToRemove: string[] = []
+      for (let i = 0; i < localStorage.length; i += 1) {
+        const key = localStorage.key(i)
+        if (!key) continue
+        if (key.startsWith('sb-') && key.endsWith('-auth-token')) {
+          keysToRemove.push(key)
+        }
+      }
+      keysToRemove.forEach((key) => localStorage.removeItem(key))
+    } catch {
+      // ignore
+    }
+
+    // Faz logout local no Supabase (sem depender de rede).
+    supabase.auth.signOut({ scope: 'local' }).catch(() => {})
+
     window.location.replace('/login')
   }, [])
 
