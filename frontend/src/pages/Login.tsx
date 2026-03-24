@@ -14,7 +14,7 @@ export function Login() {
   // Detecta token de convite/recovery no hash da URL e redireciona para SetPassword
   useEffect(() => {
     const hash = window.location.hash
-    if (hash.includes('access_token') && (hash.includes('type=recovery') || hash.includes('type=invite'))) {
+    if (hash.includes('access_token')) {
       navigate('/set-password' + hash, { replace: true })
     }
   }, [navigate])

@@ -12,8 +12,12 @@ export function SetPassword() {
   const [ready, setReady] = useState(false)
 
   useEffect(() => {
-    // O Supabase processa o hash da URL automaticamente via onAuthStateChange.
-    // Quando type=recovery ou type=invite, a sessão é estabelecida temporariamente.
+    // Verifica se já existe sessão ativa (token já processado antes do componente montar)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) setReady(true)
+    })
+
+    // Escuta eventos caso o token ainda não tenha sido processado
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') {
         setReady(true)
