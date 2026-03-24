@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../supabaseClient'
 import type { Profile, PunchRecordWithUser, Role } from '../types'
+import logo from '../assets/logo.svg'
 
 const API_URL = import.meta.env.VITE_API_URL as string
 const PAGE_SIZE = 20
@@ -53,7 +54,7 @@ export function AdminDashboard() {
       const data = await apiFetch<Profile[]>('/admin/users', token)
       setUsers(data)
     } catch {
-      // silently fail; user sees empty state
+      // silently fail
     } finally {
       setLoadingData(false)
     }
@@ -108,26 +109,35 @@ export function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-surface">
-      <header className="flex items-center justify-between border-b border-white/5 px-6 py-4">
-        <div>
-          <h1 className="font-display text-lg font-bold text-white">Painel Admin</h1>
-          <p className="font-body text-xs text-slate-400">{profile?.full_name}</p>
+      {/* Faixa decorativa */}
+      <div className="h-1.5 w-full bg-gradient-to-r from-brand via-forest to-sand" />
+
+      {/* Header */}
+      <header className="flex items-center justify-between border-b border-surface-border bg-surface-card px-6 py-4 shadow-soft">
+        <div className="flex items-center gap-3">
+          <img src={logo} alt="Aldeia Escola" className="h-7 w-auto" />
+          <div className="h-4 w-px bg-surface-border" />
+          <div>
+            <p className="font-display text-sm font-semibold text-ink leading-none">Painel Admin</p>
+            <p className="mt-0.5 font-body text-xs text-ink-muted">{profile?.full_name}</p>
+          </div>
         </div>
         <button
           onClick={signOut}
-          className="rounded-xl bg-surface-card px-4 py-2 font-body text-sm text-slate-400 ring-1 ring-white/10 transition hover:text-white"
+          className="rounded-xl border border-surface-border bg-surface px-4 py-2 font-body text-sm text-ink-muted transition hover:border-brand/30 hover:text-brand"
         >
           Sair
         </button>
       </header>
 
-      <div className="flex gap-1 border-b border-white/5 px-6">
+      {/* Tabs */}
+      <div className="flex gap-1 border-b border-surface-border bg-surface-card px-6">
         {(['users', 'records'] as Tab[]).map((t) => (
           <button
             key={t}
             onClick={() => { setTab(t); setPage(1) }}
-            className={`relative px-4 py-3 font-body text-sm font-medium transition ${
-              tab === t ? 'text-brand' : 'text-slate-400 hover:text-white'
+            className={`relative px-4 py-3.5 font-body text-sm font-medium transition ${
+              tab === t ? 'text-brand' : 'text-ink-muted hover:text-ink'
             }`}
           >
             {t === 'users' ? 'Usuários' : 'Registros'}
@@ -142,13 +152,14 @@ export function AdminDashboard() {
       </div>
 
       <main className="px-4 py-6">
+        {/* Aba Usuários */}
         {tab === 'users' && (
           <div>
             <div className="mb-4 flex items-center justify-between">
-              <p className="font-body text-sm text-slate-400">{users.length} usuários</p>
+              <p className="font-body text-sm text-ink-muted">{users.length} usuário{users.length !== 1 ? 's' : ''}</p>
               <button
                 onClick={() => setShowInviteModal(true)}
-                className="rounded-xl bg-brand px-4 py-2 font-body text-sm font-semibold text-white transition hover:bg-brand-dark"
+                className="rounded-xl bg-brand px-4 py-2 font-body text-sm font-semibold text-white shadow-brand transition hover:bg-brand-dark"
               >
                 + Convidar
               </button>
@@ -161,23 +172,29 @@ export function AdminDashboard() {
             ) : (
               <div className="flex flex-col gap-3">
                 {users.map((u) => (
-                  <div
-                    key={u.id}
-                    className="rounded-2xl bg-surface-card p-4 ring-1 ring-white/5"
-                  >
+                  <div key={u.id} className="rounded-2xl border border-surface-border bg-surface-card p-4 shadow-card">
                     <div className="flex items-start justify-between">
-                      <div>
-                        <p className="font-display text-sm font-semibold text-white">{u.full_name}</p>
-                        <p className="font-body text-xs text-slate-400">{u.email}</p>
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sand font-display text-sm font-bold text-brand">
+                          {u.full_name.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="font-display text-sm font-semibold text-ink">{u.full_name}</p>
+                          <p className="font-body text-xs text-ink-muted">{u.email}</p>
+                        </div>
                       </div>
-                      <div className="flex flex-col items-end gap-1">
+                      <div className="flex flex-col items-end gap-1.5">
                         <span className={`rounded-full px-2.5 py-0.5 font-body text-xs font-medium ${
-                          u.role === 'admin' ? 'bg-brand/20 text-brand' : 'bg-slate-700 text-slate-300'
+                          u.role === 'admin'
+                            ? 'bg-brand/10 text-brand'
+                            : 'bg-forest/10 text-forest-dark'
                         }`}>
                           {u.role}
                         </span>
                         <span className={`rounded-full px-2.5 py-0.5 font-body text-xs ${
-                          u.is_active ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'
+                          u.is_active
+                            ? 'bg-forest/10 text-forest-dark'
+                            : 'bg-red-50 text-red-600'
                         }`}>
                           {u.is_active ? 'Ativo' : 'Inativo'}
                         </span>
@@ -185,18 +202,22 @@ export function AdminDashboard() {
                     </div>
                   </div>
                 ))}
+                {users.length === 0 && (
+                  <p className="py-8 text-center font-body text-sm text-ink-subtle">Nenhum usuário encontrado.</p>
+                )}
               </div>
             )}
           </div>
         )}
 
+        {/* Aba Registros */}
         {tab === 'records' && (
           <div>
             <div className="mb-4 flex flex-wrap gap-3">
               <select
                 value={filterUserId}
                 onChange={(e) => { setFilterUserId(e.target.value); setPage(1) }}
-                className="flex-1 rounded-xl bg-surface-card px-3 py-2 font-body text-sm text-white ring-1 ring-white/10 focus:outline-none focus:ring-brand"
+                className="flex-1 rounded-xl border border-surface-border bg-surface-card px-3 py-2.5 font-body text-sm text-ink shadow-soft outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
               >
                 <option value="">Todos os usuários</option>
                 {users.map((u) => (
@@ -207,7 +228,7 @@ export function AdminDashboard() {
                 type="date"
                 value={filterDate}
                 onChange={(e) => setFilterDate(e.target.value)}
-                className="rounded-xl bg-surface-card px-3 py-2 font-body text-sm text-white ring-1 ring-white/10 focus:outline-none focus:ring-brand"
+                className="rounded-xl border border-surface-border bg-surface-card px-3 py-2.5 font-body text-sm text-ink shadow-soft outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
               />
             </div>
 
@@ -217,12 +238,12 @@ export function AdminDashboard() {
               </div>
             ) : (
               <>
-                <div className="overflow-x-auto rounded-2xl bg-surface-card ring-1 ring-white/5">
+                <div className="overflow-x-auto rounded-2xl border border-surface-border bg-surface-card shadow-card">
                   <table className="w-full">
                     <thead>
-                      <tr className="border-b border-white/5">
+                      <tr className="border-b border-surface-border bg-surface">
                         {['Usuário', 'Tipo', 'Data', 'Hora', 'Foto'].map((h) => (
-                          <th key={h} className="px-4 py-3 text-left font-body text-xs font-medium uppercase tracking-wider text-slate-400">
+                          <th key={h} className="px-4 py-3 text-left font-body text-xs font-semibold uppercase tracking-wider text-ink-muted">
                             {h}
                           </th>
                         ))}
@@ -230,19 +251,21 @@ export function AdminDashboard() {
                     </thead>
                     <tbody>
                       {filteredRecords.map((r) => (
-                        <tr key={r.id} className="border-b border-white/5 last:border-0">
-                          <td className="px-4 py-3 font-body text-sm text-white">{r.user.full_name}</td>
+                        <tr key={r.id} className="border-b border-surface-border last:border-0 hover:bg-surface/60 transition">
+                          <td className="px-4 py-3 font-body text-sm text-ink">{r.user.full_name}</td>
                           <td className="px-4 py-3">
                             <span className={`rounded-full px-2.5 py-0.5 font-body text-xs font-medium ${
-                              r.type === 'entrada' ? 'bg-brand/20 text-brand' : 'bg-orange-500/20 text-orange-400'
+                              r.type === 'entrada'
+                                ? 'bg-forest/10 text-forest-dark'
+                                : 'bg-brand/10 text-brand'
                             }`}>
                               {r.type}
                             </span>
                           </td>
-                          <td className="px-4 py-3 font-body text-sm text-slate-300">
+                          <td className="px-4 py-3 font-body text-sm text-ink-muted">
                             {new Date(r.punched_at).toLocaleDateString('pt-BR')}
                           </td>
-                          <td className="px-4 py-3 font-body text-sm text-slate-300">
+                          <td className="px-4 py-3 font-body text-sm text-ink-muted">
                             {new Date(r.punched_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                           </td>
                           <td className="px-4 py-3">
@@ -250,7 +273,7 @@ export function AdminDashboard() {
                               <img
                                 src={r.photo_url}
                                 alt="Foto do ponto"
-                                className="h-8 w-8 rounded-lg object-cover ring-1 ring-white/10 transition hover:ring-brand"
+                                className="h-8 w-8 rounded-lg border border-surface-border object-cover transition hover:border-brand/40"
                               />
                             </a>
                           </td>
@@ -258,7 +281,7 @@ export function AdminDashboard() {
                       ))}
                       {filteredRecords.length === 0 && (
                         <tr>
-                          <td colSpan={5} className="px-4 py-8 text-center font-body text-sm text-slate-500">
+                          <td colSpan={5} className="px-4 py-8 text-center font-body text-sm text-ink-subtle">
                             Nenhum registro encontrado.
                           </td>
                         </tr>
@@ -271,15 +294,15 @@ export function AdminDashboard() {
                   <button
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
                     disabled={page === 1}
-                    className="rounded-xl bg-surface-card px-4 py-2 font-body text-sm text-slate-400 ring-1 ring-white/10 transition hover:text-white disabled:opacity-40"
+                    className="rounded-xl border border-surface-border bg-surface-card px-4 py-2 font-body text-sm text-ink-muted transition hover:border-brand/30 hover:text-brand disabled:opacity-40"
                   >
                     Anterior
                   </button>
-                  <span className="font-body text-sm text-slate-400">Página {page}</span>
+                  <span className="font-body text-sm text-ink-muted">Página {page}</span>
                   <button
                     onClick={() => setPage((p) => p + 1)}
                     disabled={records.length < PAGE_SIZE}
-                    className="rounded-xl bg-surface-card px-4 py-2 font-body text-sm text-slate-400 ring-1 ring-white/10 transition hover:text-white disabled:opacity-40"
+                    className="rounded-xl border border-surface-border bg-surface-card px-4 py-2 font-body text-sm text-ink-muted transition hover:border-brand/30 hover:text-brand disabled:opacity-40"
                   >
                     Próxima
                   </button>
@@ -290,26 +313,34 @@ export function AdminDashboard() {
         )}
       </main>
 
+      {/* Modal Convidar */}
       <AnimatePresence>
         {showInviteModal && (
           <motion.div
-            className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 px-4 pb-6 sm:items-center"
+            className="fixed inset-0 z-50 flex items-end justify-center bg-ink/30 px-4 pb-6 backdrop-blur-sm sm:items-center"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setShowInviteModal(false)}
           >
             <motion.div
-              className="w-full max-w-sm rounded-3xl bg-surface-card p-6"
+              className="w-full max-w-sm rounded-3xl border border-surface-border bg-surface-card p-6 shadow-card"
               initial={{ y: 40, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 40, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
             >
-              <h2 className="mb-4 font-display text-lg font-bold text-white">Convidar Usuário</h2>
+              <h2 className="mb-5 font-display text-lg font-bold text-ink">Convidar Usuário</h2>
 
               {inviteSuccess ? (
-                <p className="py-4 text-center font-body text-brand">Convite enviado com sucesso!</p>
+                <div className="py-6 text-center">
+                  <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-forest/10">
+                    <svg className="h-6 w-6 text-forest" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <p className="font-body text-sm font-medium text-forest-dark">Convite enviado com sucesso!</p>
+                </div>
               ) : (
                 <form onSubmit={handleInvite} className="flex flex-col gap-4">
                   <input
@@ -318,7 +349,7 @@ export function AdminDashboard() {
                     value={inviteForm.full_name}
                     onChange={(e) => setInviteForm((f) => ({ ...f, full_name: e.target.value }))}
                     required
-                    className="w-full rounded-xl bg-surface-elevated px-4 py-3 font-body text-sm text-white placeholder-slate-500 outline-none ring-1 ring-white/10 focus:ring-brand"
+                    className="w-full rounded-xl border border-surface-border bg-surface px-4 py-3 font-body text-sm text-ink placeholder-ink-subtle outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
                   />
                   <input
                     type="email"
@@ -326,35 +357,35 @@ export function AdminDashboard() {
                     value={inviteForm.email}
                     onChange={(e) => setInviteForm((f) => ({ ...f, email: e.target.value }))}
                     required
-                    className="w-full rounded-xl bg-surface-elevated px-4 py-3 font-body text-sm text-white placeholder-slate-500 outline-none ring-1 ring-white/10 focus:ring-brand"
+                    className="w-full rounded-xl border border-surface-border bg-surface px-4 py-3 font-body text-sm text-ink placeholder-ink-subtle outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
                   />
                   <select
                     value={inviteForm.role}
                     onChange={(e) => setInviteForm((f) => ({ ...f, role: e.target.value as Role }))}
-                    className="w-full rounded-xl bg-surface-elevated px-4 py-3 font-body text-sm text-white outline-none ring-1 ring-white/10 focus:ring-brand"
+                    className="w-full rounded-xl border border-surface-border bg-surface px-4 py-3 font-body text-sm text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
                   >
                     <option value="funcionario">Funcionário</option>
                     <option value="admin">Admin</option>
                   </select>
 
                   {inviteError && (
-                    <p className="rounded-xl bg-red-500/10 px-4 py-3 font-body text-sm text-red-400">
+                    <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 font-body text-sm text-red-700">
                       {inviteError}
                     </p>
                   )}
 
-                  <div className="flex gap-3">
+                  <div className="flex gap-3 pt-1">
                     <button
                       type="button"
                       onClick={() => setShowInviteModal(false)}
-                      className="flex-1 rounded-xl bg-surface-elevated py-3 font-body text-sm text-slate-400 ring-1 ring-white/10"
+                      className="flex-1 rounded-xl border border-surface-border bg-surface py-3 font-body text-sm text-ink-muted transition hover:border-brand/30 hover:text-brand"
                     >
                       Cancelar
                     </button>
                     <button
                       type="submit"
                       disabled={inviteLoading}
-                      className="flex-1 rounded-xl bg-brand py-3 font-body text-sm font-semibold text-white transition hover:bg-brand-dark disabled:opacity-60"
+                      className="flex-1 rounded-xl bg-brand py-3 font-body text-sm font-semibold text-white shadow-brand transition hover:bg-brand-dark disabled:opacity-60"
                     >
                       {inviteLoading ? 'Enviando...' : 'Convidar'}
                     </button>
@@ -365,6 +396,11 @@ export function AdminDashboard() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Rodapé */}
+      <footer className="border-t border-surface-border px-6 py-4 text-center">
+        <p className="font-body text-xs text-ink-subtle">Aldeia Escola · São José dos Campos</p>
+      </footer>
     </div>
   )
 }

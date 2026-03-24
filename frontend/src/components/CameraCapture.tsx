@@ -94,17 +94,19 @@ export function CameraCapture({ onCapture, onCancel }: CameraCaptureProps) {
   return (
     <AnimatePresence>
       <motion.div
-        className="fixed inset-0 z-50 flex flex-col bg-black"
+        className="fixed inset-0 z-50 flex flex-col bg-ink"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
       >
         {error ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
-            <p className="text-red-400 font-body">{error}</p>
+            <div className="rounded-2xl border border-red-200 bg-red-50 px-6 py-4">
+              <p className="font-body text-sm text-red-700">{error}</p>
+            </div>
             <button
               onClick={onCancel}
-              className="rounded-2xl bg-surface-elevated px-6 py-3 font-body text-white"
+              className="rounded-2xl bg-surface-card px-6 py-3 font-body text-sm font-medium text-ink shadow-card"
             >
               Voltar
             </button>
@@ -119,33 +121,41 @@ export function CameraCapture({ onCapture, onCancel }: CameraCaptureProps) {
               className="h-full w-full object-cover"
             />
 
-            <div className="absolute inset-x-0 bottom-0 flex items-center justify-between px-8 pb-10 pt-6 bg-gradient-to-t from-black/80 to-transparent">
+            {/* Overlay com guia de rosto */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="h-64 w-52 rounded-full border-2 border-sand/50" />
+            </div>
+
+            <div className="absolute inset-x-0 bottom-0 flex items-center justify-between px-8 pb-10 pt-6 bg-gradient-to-t from-ink/70 to-transparent">
+              {/* Cancelar */}
               <button
                 onClick={onCancel}
-                className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-sm"
+                className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-sm transition hover:bg-white/30"
                 aria-label="Cancelar"
               >
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
 
+              {/* Capturar */}
               <motion.button
                 onClick={handleCapture}
                 disabled={capturing}
                 whileTap={{ scale: 0.92 }}
-                className="flex h-20 w-20 items-center justify-center rounded-full border-4 border-white bg-white/20 backdrop-blur-sm disabled:opacity-50"
+                className="flex h-20 w-20 items-center justify-center rounded-full border-4 border-sand/80 bg-white/20 backdrop-blur-sm disabled:opacity-50"
                 aria-label="Capturar foto"
               >
-                <div className="h-14 w-14 rounded-full bg-white" />
+                <div className="h-14 w-14 rounded-full bg-sand" />
               </motion.button>
 
+              {/* Alternar câmera */}
               <button
                 onClick={toggleCamera}
-                className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-sm"
+                className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-sm transition hover:bg-white/30"
                 aria-label="Alternar câmera"
               >
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
               </button>

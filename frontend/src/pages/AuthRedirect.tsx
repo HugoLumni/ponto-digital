@@ -16,7 +16,7 @@ export function AuthRedirect() {
         return
       }
 
-      setDebugMsg(`Usuário OK: ${user.id} — buscando perfil...`)
+      setDebugMsg(`Buscando perfil...`)
 
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
@@ -25,12 +25,11 @@ export function AuthRedirect() {
         .single()
 
       if (profileError || !profile) {
-        setDebugMsg(`Erro no perfil: ${profileError?.message ?? 'profile null'} — code: ${profileError?.code}`)
+        setDebugMsg(`Erro no perfil: ${profileError?.message ?? 'profile null'} (${profileError?.code})`)
         setTimeout(() => navigate('/login', { replace: true }), 5000)
         return
       }
 
-      setDebugMsg(`Role: ${profile.role} — redirecionando...`)
       navigate(profile.role === 'admin' ? '/admin' : '/punch', { replace: true })
     }
 
@@ -38,9 +37,12 @@ export function AuthRedirect() {
   }, [navigate])
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-surface px-6">
-      <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand border-t-transparent" />
-      <p className="font-body text-sm text-slate-400 text-center max-w-xs">{debugMsg}</p>
+    <div className="flex min-h-screen flex-col bg-surface">
+      <div className="h-1.5 w-full bg-gradient-to-r from-brand via-forest to-sand" />
+      <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand border-t-transparent" />
+        <p className="max-w-xs text-center font-body text-sm text-ink-muted">{debugMsg}</p>
+      </div>
     </div>
   )
 }

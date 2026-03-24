@@ -5,12 +5,17 @@
 @layer base {
   html {
     font-family: 'DM Sans', sans-serif;
-    background-color: #0F1117;
-    color: #F1F5F9;
+    background-color: #FAF8F4;
+    color: #2C1F1A;
+    -webkit-font-smoothing: antialiased;
   }
 
   h1, h2, h3, h4 {
     font-family: 'Sora', sans-serif;
+  }
+
+  * {
+    box-sizing: border-box;
   }
 }
 

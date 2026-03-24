@@ -12,8 +12,11 @@ export function RoleGuard({ allowedRole, redirectTo }: RoleGuardProps) {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-surface">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand border-t-transparent" />
+      <div className="flex min-h-screen flex-col bg-surface">
+        <div className="h-1.5 w-full bg-gradient-to-r from-brand via-forest to-sand" />
+        <div className="flex flex-1 items-center justify-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand border-t-transparent" />
+        </div>
       </div>
     )
   }
