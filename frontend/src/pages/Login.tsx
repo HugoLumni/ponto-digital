@@ -19,9 +19,20 @@ export function Login() {
   }, [navigate])
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!session?.user) return
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', session.user.id)
+        .single()
+
+      if (profile?.role) {
         navigate('/auth/redirect', { replace: true })
+      } else {
+        // Evita loop quando há sessão inválida/órfã sem profile correspondente.
+        await supabase.auth.signOut()
       }
     })
   }, [navigate])

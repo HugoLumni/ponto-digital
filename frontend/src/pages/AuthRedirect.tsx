@@ -25,8 +25,9 @@ export function AuthRedirect() {
         .single()
 
       if (profileError || !profile) {
-        setDebugMsg(`Erro no perfil: ${profileError?.message ?? 'profile null'} (${profileError?.code})`)
-        setTimeout(() => navigate('/login', { replace: true }), 5000)
+        setDebugMsg(`Perfil ausente/inválido. Encerrando sessão...`)
+        await supabase.auth.signOut()
+        setTimeout(() => navigate('/login', { replace: true }), 1200)
         return
       }
 
