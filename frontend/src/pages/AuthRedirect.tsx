@@ -1,7 +1,6 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { supabase } from '../supabaseClient'
 import { Spinner } from '../components/Spinner'
 
 /**
@@ -27,10 +26,9 @@ export function AuthRedirect() {
     if (!profile && !profileResolved) return
 
     if (!profile && profileResolved) {
-      // Sessão válida mas sem perfil correspondente — limpa e reinicia.
-      supabase.auth.signOut().then(() => {
-        navigate('/login', { replace: true })
-      })
+      // Perfil ausente após resolver auth: volta para login sem forçar signOut.
+      // Evita deslogar indevidamente em corridas de inicialização no F5.
+      navigate('/login', { replace: true })
       return
     }
 

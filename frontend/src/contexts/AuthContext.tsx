@@ -53,7 +53,7 @@ async function fetchProfile(userId: string): Promise<Profile | null> {
       .from('profiles')
       .select('*')
       .eq('id', userId)
-      .single()
+      .maybeSingle()
     if (error || !data) return null
     return data as Profile
   } catch {
