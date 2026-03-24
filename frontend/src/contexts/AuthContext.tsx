@@ -14,7 +14,6 @@ interface AuthState {
   user: User | null
   profile: Profile | null
   session: Session | null
-  /** true apenas enquanto a sessão inicial ainda não foi resolvida */
   loading: boolean
 }
 
@@ -32,7 +31,6 @@ async function fetchProfile(userId: string): Promise<Profile | null> {
       .select('*')
       .eq('id', userId)
       .single()
-
     if (error || !data) return null
     return data as Profile
   } catch {
@@ -51,32 +49,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let mounted = true
 
-    // Resolve sessão inicial uma única vez
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!mounted) return
-      if (session?.user) {
-        const profile = await fetchProfile(session.user.id)
-        if (mounted) {
-          setState({ user: session.user, profile, session, loading: false })
-        }
-      } else {
-        if (mounted) {
-          setState({ user: null, profile: null, session: null, loading: false })
-        }
-      }
-    }).catch(() => {
-      if (mounted) {
-        setState({ user: null, profile: null, session: null, loading: false })
-      }
-    })
-
-    // Escuta mudanças de sessão subsequentes (login, logout, token refresh)
+    // onAuthStateChange com INITIAL_SESSION é a única fonte de verdade.
+    // Ele dispara imediatamente com a sessão atual (ou null) antes de qualquer
+    // evento subsequente, eliminando a corrida com getSession().
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      async (_event, session) => {
         if (!mounted) return
-
-        // INITIAL_SESSION já foi tratado acima; evita dupla execução
-        if (event === 'INITIAL_SESSION') return
 
         if (session?.user) {
           const profile = await fetchProfile(session.user.id)
@@ -91,9 +69,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
     )
 
+    // Fallback de segurança: se onAuthStateChange não disparar em 5s, destrava o loading.
+    const fallback = setTimeout(() => {
+      if (mounted) {
+        setState(prev => prev.loading ? { ...prev, loading: false } : prev)
+      }
+    }, 5000)
+
     return () => {
       mounted = false
       subscription.unsubscribe()
+      clearTimeout(fallback)
     }
   }, [])
 
