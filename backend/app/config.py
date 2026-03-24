@@ -7,6 +7,10 @@ load_dotenv()
 class Settings:
     supabase_url: str = os.environ["SUPABASE_URL"]
     supabase_service_role_key: str = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
+    storage_bucket_punch_photos: str = os.environ.get("STORAGE_BUCKET_PUNCH_PHOTOS", "punch-photos")
+    storage_signed_url_expires_seconds: int = int(
+        os.environ.get("STORAGE_SIGNED_URL_EXPIRES_SECONDS", "120")
+    )
     # Obrigatório só para JWTs HS256 (legado). Tokens ES256 usam JWKS automaticamente.
     supabase_jwt_secret: str = os.environ.get("SUPABASE_JWT_SECRET", "").strip()
     frontend_urls: list[str] = [
