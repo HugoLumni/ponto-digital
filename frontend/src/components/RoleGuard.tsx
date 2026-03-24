@@ -21,7 +21,12 @@ export function RoleGuard({ allowedRole, redirectTo }: RoleGuardProps) {
     )
   }
 
-  if (!profile || profile.role !== allowedRole) {
+  // Evita loop /admin <-> /punch quando o profile ainda não foi resolvido
+  if (!profile) {
+    return <Navigate to="/auth/redirect" replace />
+  }
+
+  if (profile.role !== allowedRole) {
     return <Navigate to={redirectTo} replace />
   }
 
